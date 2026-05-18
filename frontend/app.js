@@ -81,10 +81,10 @@ function bindFileInput(id, onText) {
 async function loadBundledDatasets() {
   try {
     const [a, b, c, paths] = await Promise.all([
-      fetchText("../data/candidates_A.csv"),
-      fetchText("../data/candidates_B.csv"),
-      fetchText("../data/candidates_C.csv"),
-      fetchText("../data/paths.csv"),
+      fetchText(dataUrl("candidates_A.csv")),
+      fetchText(dataUrl("candidates_B.csv")),
+      fetchText(dataUrl("candidates_C.csv")),
+      fetchText(dataUrl("paths.csv")),
     ]);
     state.candidates.A = parseCandidates(a);
     state.candidates.B = parseCandidates(b);
@@ -96,6 +96,14 @@ async function loadBundledDatasets() {
   } catch (error) {
     els.datasetStatus.textContent = "Could not load bundled datasets. Start a local server from the project root, then open /frontend/index.html.\n\n" + error.message;
   }
+}
+
+function dataUrl(fileName) {
+  const path = window.location.pathname;
+  if (path.includes("/frontend/")) {
+    return `../data/${fileName}`;
+  }
+  return `data/${fileName}`;
 }
 
 async function fetchText(url) {

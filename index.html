@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CPT204 Algorithm Lab</title>
+    <link rel="stylesheet" href="frontend/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>CPT204 Algorithm Lab</h1>
+        <p>Upload candidate and path datasets, choose algorithms, and inspect rankings, routes, runtimes, and graph views.</p>
+      </div>
+      <button id="loadSamplesButton" class="primary-button">Load bundled datasets</button>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>Datasets</h2>
+          <label class="file-row">
+            <span>Candidates A</span>
+            <input id="candidateAInput" type="file" accept=".csv">
+          </label>
+          <label class="file-row">
+            <span>Candidates B</span>
+            <input id="candidateBInput" type="file" accept=".csv">
+          </label>
+          <label class="file-row">
+            <span>Candidates C</span>
+            <input id="candidateCInput" type="file" accept=".csv">
+          </label>
+          <label class="file-row">
+            <span>Paths</span>
+            <input id="pathsInput" type="file" accept=".csv">
+          </label>
+          <div id="datasetStatus" class="status-box">No dataset loaded yet.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Controls</h2>
+          <label>
+            Candidate dataset
+            <select id="datasetSelect">
+              <option value="A">Dataset A</option>
+              <option value="B">Dataset B</option>
+              <option value="C">Dataset C</option>
+            </select>
+          </label>
+
+          <label>
+            Sorting algorithm
+            <select id="sortAlgorithmSelect">
+              <option value="merge">Merge Sort</option>
+              <option value="quickM3">Quick Sort Median-of-Three</option>
+              <option value="quick">Quick Sort</option>
+              <option value="bubble">Bubble Sort</option>
+            </select>
+          </label>
+
+          <label>
+            Graph algorithm
+            <select id="graphAlgorithmSelect">
+              <option value="dijkstra">Dijkstra shortest path</option>
+              <option value="floyd">Floyd-Warshall shortest path</option>
+              <option value="bfs">BFS traversal</option>
+              <option value="dfs">DFS traversal</option>
+              <option value="prim">Prim MST</option>
+              <option value="tsp">Global route optimization</option>
+            </select>
+          </label>
+
+          <label>
+            Graph representation
+            <select id="representationSelect">
+              <option value="list">Adjacency List</option>
+              <option value="matrix">Adjacency Matrix</option>
+            </select>
+          </label>
+
+          <div class="two-column">
+            <label>
+              Source
+              <select id="sourceSelect"></select>
+            </label>
+            <label>
+              Destination
+              <select id="destinationSelect"></select>
+            </label>
+          </div>
+
+          <label>
+            Waypoints / TSP targets
+            <input id="waypointInput" type="text" placeholder="L0001,L0105,L0205">
+          </label>
+
+          <button id="runButton" class="primary-button">Run analysis</button>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <section class="metrics-grid">
+          <article class="metric-card">
+            <span>Candidate rows</span>
+            <strong id="candidateRows">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Graph vertices</span>
+            <strong id="graphVertices">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Graph edges</span>
+            <strong id="graphEdges">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Last runtime</span>
+            <strong id="lastRuntime">0 ms</strong>
+          </article>
+        </section>
+
+        <section class="split-view">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Top 10 locations</h2>
+              <span id="top10Subtitle">Waiting for data</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Location</th>
+                    <th>Priority</th>
+                  </tr>
+                </thead>
+                <tbody id="top10Body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-heading">
+              <h2>Runtime chart</h2>
+              <span>Average measured runtime</span>
+            </div>
+            <canvas id="runtimeChart" width="680" height="320"></canvas>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Path visualization</h2>
+            <span id="pathSummary">Load data, then run a graph algorithm.</span>
+          </div>
+          <canvas id="graphCanvas" width="1120" height="560"></canvas>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Algorithm output</h2>
+            <span>Result details</span>
+          </div>
+          <pre id="resultOutput">No run yet.</pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="frontend/app.js"></script>
+  </body>
+</html>

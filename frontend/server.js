@@ -17,7 +17,7 @@ const server = http.createServer((request, response) => {
   let filePath = path.normalize(path.join(root, decodeURIComponent(url.pathname)));
 
   if (url.pathname === "/") {
-    filePath = path.join(root, "frontend", "index.html");
+    filePath = path.join(root, "index.html");
   }
 
   if (!filePath.startsWith(root)) {
