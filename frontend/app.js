@@ -2,6 +2,12 @@ const SORT_RUNS = 5;
 const SORT_WARMUPS = 2;
 const SORT_TARGET_SAMPLE_MS = 12;
 const SORT_MAX_BATCH_ITEMS = 220000;
+const DEFAULT_SORT_ALGORITHM = "merge";
+const DEFAULT_BUNDLED_ROUTE = {
+  source: "L0001",
+  destination: "L0201",
+  waypoints: ["L0105", "L0205"],
+};
 
 const state = {
   candidates: { A: [], B: [], C: [] },
@@ -11,6 +17,7 @@ const state = {
   lastPath: [],
   lastVisited: [],
   lastMstEdges: [],
+  routeEditedByUser: false,
 };
 
 const els = {
@@ -22,7 +29,6 @@ const els = {
   graphEdges: document.getElementById("graphEdges"),
   lastRuntime: document.getElementById("lastRuntime"),
   datasetSelect: document.getElementById("datasetSelect"),
-  sortAlgorithmSelect: document.getElementById("sortAlgorithmSelect"),
   graphAlgorithmSelect: document.getElementById("graphAlgorithmSelect"),
   representationSelect: document.getElementById("representationSelect"),
   sourceSelect: document.getElementById("sourceSelect"),
@@ -46,25 +52,31 @@ const SORT_ALGORITHMS = {
 els.loadSamplesButton.addEventListener("click", loadBundledDatasets);
 els.runButton.addEventListener("click", runAnalysis);
 els.datasetSelect.addEventListener("change", runAnalysis);
-els.sortAlgorithmSelect.addEventListener("change", runAnalysis);
 els.graphAlgorithmSelect.addEventListener("change", updateControlsForGraphMode);
 els.representationSelect.addEventListener("change", runAnalysis);
+els.sourceSelect.addEventListener("change", () => markRouteEditedByUser(true));
+els.destinationSelect.addEventListener("change", () => markRouteEditedByUser(true));
+els.waypointInput.addEventListener("input", () => markRouteEditedByUser(false));
 
 bindFileInput("candidateAInput", text => {
   state.candidates.A = parseCandidates(text);
+  state.routeEditedByUser = true;
   refreshAfterDataChange();
 });
 bindFileInput("candidateBInput", text => {
   state.candidates.B = parseCandidates(text);
+  state.routeEditedByUser = true;
   refreshAfterDataChange();
 });
 bindFileInput("candidateCInput", text => {
   state.candidates.C = parseCandidates(text);
+  state.routeEditedByUser = true;
   refreshAfterDataChange();
 });
 bindFileInput("pathsInput", text => {
   state.graph = buildGraph(parsePaths(text));
   buildPositions();
+  state.routeEditedByUser = true;
   refreshAfterDataChange();
 });
 
@@ -93,7 +105,10 @@ async function loadBundledDatasets() {
     state.candidates.C = parseCandidates(c);
     state.graph = buildGraph(parsePaths(paths));
     buildPositions();
-    refreshAfterDataChange();
+    state.routeEditedByUser = false;
+    updateDatasetStatus();
+    populateVertexSelects();
+    applyBundledRoutePreset();
     runAnalysis();
   } catch (error) {
     els.datasetStatus.textContent = "Could not load bundled datasets. Start a local server from the project root, then open /frontend/index.html.\n\n" + error.message;
@@ -122,6 +137,18 @@ function refreshAfterDataChange() {
   runAnalysis();
 }
 
+function markRouteEditedByUser(clearPresetWaypoints) {
+  if (!state.graph) {
+    return;
+  }
+  state.routeEditedByUser = true;
+  if (clearPresetWaypoints && els.waypointInput.dataset.preset === "true") {
+    els.waypointInput.value = "";
+    delete els.waypointInput.dataset.preset;
+  }
+  runAnalysis();
+}
+
 function updateDatasetStatus() {
   const graph = state.graph;
   els.datasetStatus.textContent = [
@@ -140,6 +167,23 @@ function populateVertexSelects() {
   fillSelect(els.destinationSelect, vertices);
   els.sourceSelect.value = vertices.includes(currentSource) ? currentSource : (vertices[0] || "");
   els.destinationSelect.value = vertices.includes(currentDestination) ? currentDestination : (vertices[9] || vertices[0] || "");
+}
+
+function applyBundledRoutePreset() {
+  if (!state.graph || state.routeEditedByUser) {
+    return;
+  }
+
+  if (state.graph.index.has(DEFAULT_BUNDLED_ROUTE.source)) {
+    els.sourceSelect.value = DEFAULT_BUNDLED_ROUTE.source;
+  }
+  if (state.graph.index.has(DEFAULT_BUNDLED_ROUTE.destination)) {
+    els.destinationSelect.value = DEFAULT_BUNDLED_ROUTE.destination;
+  }
+
+  const validWaypoints = DEFAULT_BUNDLED_ROUTE.waypoints.filter(id => state.graph.index.has(id));
+  els.waypointInput.value = validWaypoints.join(",");
+  els.waypointInput.dataset.preset = "true";
 }
 
 function fillSelect(select, values) {
@@ -184,7 +228,7 @@ function clearResults(message) {
 }
 
 function runSortingSection(candidates) {
-  const selectedAlgorithm = els.sortAlgorithmSelect.value;
+  const selectedAlgorithm = DEFAULT_SORT_ALGORITHM;
   const timings = [];
   let selectedSorted = null;
 
@@ -202,7 +246,7 @@ function runSortingSection(candidates) {
   }
 
   const top10 = selectedSorted.slice(0, 10);
-  renderTop10(top10, SORT_ALGORITHMS[selectedAlgorithm].label);
+  renderTop10(top10, `${SORT_ALGORITHMS[selectedAlgorithm].label} fixed ranking`);
   drawRuntimeChart(timings, selectedAlgorithm);
   state.lastSortTimings = timings;
   return { top10, timings };
@@ -1252,6 +1296,6 @@ function escapeHtml(value) {
 }
 
 window.addEventListener("resize", () => {
-  drawRuntimeChart(state.lastSortTimings, els.sortAlgorithmSelect.value);
+  drawRuntimeChart(state.lastSortTimings, DEFAULT_SORT_ALGORITHM);
   drawGraph({ path: state.lastPath, visited: state.lastVisited, mstEdges: state.lastMstEdges });
 });
