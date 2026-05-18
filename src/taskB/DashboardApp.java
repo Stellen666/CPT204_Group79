@@ -2,6 +2,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -446,6 +447,7 @@ public class DashboardApp {
         JTable casesTable = buildTable(pathCaseRows(data.pathCases), new String[]{
                 "Case", "Required points", "Cost", "Runtime", "Path nodes"
         });
+        configureRouteCasesTable(casesTable);
 
         JPanel top = new JPanel(new BorderLayout(8, 8));
         top.add(new JLabel("Route case:"), BorderLayout.WEST);
@@ -564,11 +566,32 @@ public class DashboardApp {
                 return false;
             }
         };
-        JTable table = new JTable(model);
+        JTable table = new JTable(model) {
+            @Override
+            public String getToolTipText(MouseEvent event) {
+                int row = rowAtPoint(event.getPoint());
+                int column = columnAtPoint(event.getPoint());
+                if (row < 0 || column < 0) {
+                    return null;
+                }
+
+                Object value = getValueAt(row, column);
+                return value == null ? null : value.toString();
+            }
+        };
         table.setAutoCreateRowSorter(true);
         table.setRowHeight(24);
         table.getTableHeader().setReorderingAllowed(false);
         return table;
+    }
+
+    private static void configureRouteCasesTable(JTable table) {
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        table.getColumnModel().getColumn(0).setPreferredWidth(95);
+        table.getColumnModel().getColumn(1).setPreferredWidth(360);
+        table.getColumnModel().getColumn(2).setPreferredWidth(90);
+        table.getColumnModel().getColumn(3).setPreferredWidth(130);
+        table.getColumnModel().getColumn(4).setPreferredWidth(95);
     }
 
     private static List<String> collectTargetIds(Map<String, List<LocationCandidate>> topTargets) {
