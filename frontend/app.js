@@ -1,5 +1,7 @@
 const SORT_RUNS = 5;
 const SORT_WARMUPS = 2;
+const SORT_TARGET_SAMPLE_MS = 12;
+const SORT_MAX_BATCH_ITEMS = 220000;
 
 const state = {
   candidates: { A: [], B: [], C: [] },
@@ -167,7 +169,7 @@ function runAnalysis() {
   els.candidateRows.textContent = candidates.length.toLocaleString();
   els.graphVertices.textContent = state.graph ? state.graph.vertices.length.toLocaleString() : "0";
   els.graphEdges.textContent = state.graph ? state.graph.edgeCount.toLocaleString() : "0";
-  els.lastRuntime.textContent = `${graphResult.runtimeMs.toFixed(3)} ms`;
+  els.lastRuntime.textContent = formatDuration(graphResult.runtimeMs);
   els.resultOutput.textContent = graphResult.text;
 }
 
@@ -211,14 +213,17 @@ function measureSort(candidates, sorter) {
     sorter(copyCandidates(candidates));
   }
 
+  const batchSize = chooseSortBatchSize(candidates, sorter);
   let total = 0;
   let best = Infinity;
   let latestSorted = [];
   for (let i = 0; i < SORT_RUNS; i++) {
-    const copy = copyCandidates(candidates);
+    const batch = makeCandidateBatch(candidates, batchSize);
     const start = performance.now();
-    latestSorted = sorter(copy);
-    const elapsed = performance.now() - start;
+    for (let j = 0; j < batch.length; j++) {
+      latestSorted = sorter(batch[j]);
+    }
+    const elapsed = (performance.now() - start) / batchSize;
     total += elapsed;
     best = Math.min(best, elapsed);
   }
@@ -228,6 +233,34 @@ function measureSort(candidates, sorter) {
     bestMs: best,
     sorted: latestSorted,
   };
+}
+
+function chooseSortBatchSize(candidates, sorter) {
+  const maxBatchSize = Math.max(1, Math.floor(SORT_MAX_BATCH_ITEMS / Math.max(1, candidates.length)));
+  let batchSize = 1;
+
+  while (batchSize < maxBatchSize) {
+    const batch = makeCandidateBatch(candidates, batchSize);
+    const start = performance.now();
+    for (let i = 0; i < batch.length; i++) {
+      sorter(batch[i]);
+    }
+    const elapsed = performance.now() - start;
+    if (elapsed >= SORT_TARGET_SAMPLE_MS) {
+      break;
+    }
+    batchSize *= 2;
+  }
+
+  return Math.min(batchSize, maxBatchSize);
+}
+
+function makeCandidateBatch(candidates, batchSize) {
+  const batch = [];
+  for (let i = 0; i < batchSize; i++) {
+    batch.push(copyCandidates(candidates));
+  }
+  return batch;
 }
 
 function renderTop10(top10, algorithmName) {
@@ -290,7 +323,7 @@ function runTraversal(name, representation, run) {
       `${name} traversal (${representationLabel(representation)})`,
       `Start: ${result.start}`,
       `Visited vertices: ${result.order.length}`,
-      `Runtime: ${runtimeMs.toFixed(3)} ms`,
+      `Runtime: ${formatDuration(runtimeMs)}`,
       "",
       `Order preview: ${result.order.slice(0, 35).join(" -> ")}${result.order.length > 35 ? " -> ..." : ""}`,
     ].join("\n"),
@@ -330,7 +363,7 @@ function runDijkstraRoute(representation, graph, routePoints) {
       `Required points: ${routePoints.join(" -> ")}`,
       `Total cost: ${formatCost(totalCost)}`,
       `Path nodes: ${fullPath.length}`,
-      `Runtime: ${runtimeMs.toFixed(3)} ms`,
+      `Runtime: ${formatDuration(runtimeMs)}`,
       "",
       fullPath.join(" -> "),
     ].join("\n"),
@@ -384,7 +417,7 @@ function runFloydRoute(routePoints) {
       `Required points: ${routePoints.join(" -> ")}`,
       `Total cost: ${formatCost(totalCost)}`,
       `Path nodes: ${fullPath.length}`,
-      `Runtime: ${runtimeMs.toFixed(3)} ms`,
+      `Runtime: ${formatDuration(runtimeMs)}`,
       "",
       fullPath.join(" -> "),
     ].join("\n"),
@@ -407,7 +440,7 @@ function runPrim(representation, graph, source) {
       `Start: ${source}`,
       `Tree edges: ${result.edges.length}`,
       `Total weight: ${formatCost(result.totalWeight)}`,
-      `Runtime: ${runtimeMs.toFixed(3)} ms`,
+      `Runtime: ${formatDuration(runtimeMs)}`,
       "",
       `Edge preview: ${result.edges.slice(0, 16).map(edge => `${edge.from}-${edge.to}(${edge.weight})`).join(", ")}${result.edges.length > 16 ? ", ..." : ""}`,
     ].join("\n"),
@@ -440,7 +473,7 @@ function runTsp(targets) {
       `Visit order: ${result.order.join(" -> ")}`,
       `Total cost: ${formatCost(result.cost)}`,
       `Visualized path nodes: ${result.path.length}`,
-      `Runtime: ${runtimeMs.toFixed(3)} ms`,
+      `Runtime: ${formatDuration(runtimeMs)}`,
     ].join("\n"),
   };
 }
@@ -1026,7 +1059,7 @@ function drawRuntimeChart(timings, selectedKey) {
     ctx.stroke();
     ctx.fillStyle = "#697386";
     ctx.font = "12px Segoe UI";
-    ctx.fillText(`${(max * i / 4).toFixed(3)} ms`, 8, y + 4);
+    ctx.fillText(formatDuration(max * i / 4), 8, y + 4);
   }
 
   timings.forEach((item, index) => {
@@ -1039,10 +1072,10 @@ function drawRuntimeChart(timings, selectedKey) {
     ctx.fillStyle = "#1f2937";
     ctx.font = "12px Segoe UI";
     ctx.textAlign = "center";
-    ctx.fillText(item.averageMs.toFixed(3), x + barWidth / 2, Math.max(top + 12, y - 7));
+    ctx.fillText(formatDuration(item.averageMs), x + barWidth / 2, Math.max(top + 12, y - 7));
     ctx.fillText(shortAlgorithmLabel(item.key), x + barWidth / 2, top + chartHeight + 26);
     ctx.fillStyle = "#697386";
-    ctx.fillText(`best ${item.bestMs.toFixed(3)}`, x + barWidth / 2, top + chartHeight + 44);
+    ctx.fillText(`best ${formatDuration(item.bestMs)}`, x + barWidth / 2, top + chartHeight + 44);
   });
   ctx.textAlign = "left";
 }
@@ -1190,6 +1223,22 @@ function representationLabel(value) {
 function formatCost(value) {
   if (!Number.isFinite(value)) return "UNREACHABLE";
   return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+}
+
+function formatDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return "0 ms";
+  }
+  if (ms >= 1) {
+    return `${ms.toFixed(3)} ms`;
+  }
+
+  const microseconds = ms * 1000;
+  if (microseconds >= 1) {
+    return `${microseconds.toFixed(2)} us`;
+  }
+
+  return `${Math.max(1, Math.round(microseconds * 1000)).toLocaleString()} ns`;
 }
 
 function escapeHtml(value) {
